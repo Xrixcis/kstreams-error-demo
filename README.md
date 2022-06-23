@@ -3,7 +3,7 @@
 Sample project showcasing the issue with having multiple state stores and multiple Kafka Streams applications on Kafka 3.1.x.
 
 The test `KStreamsErrorDemoApplicationTests` passes fine with Spring Boot 2.6.8 / Kafka 3.0, but does not pass with Spring Boot 2.7.0 / Kafka 3.1.
-The stores cannot be queried (unless stars are properly aligned) - `InteractiveQueryService.get()` throws an unexpected exception:
+The stores cannot be queried (unless stars are properly aligned) - `ReadOnlyKeyValueStore.get(key)` throws an unexpected exception:
 
 ```
 org.apache.kafka.streams.errors.InvalidStateStoreException: The state store, store2, may have migrated to another instance.
