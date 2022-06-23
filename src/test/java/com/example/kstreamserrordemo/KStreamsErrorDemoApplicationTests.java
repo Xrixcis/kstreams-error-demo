@@ -3,9 +3,10 @@ package com.example.kstreamserrordemo;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.state.QueryableStoreTypes;
 import org.awaitility.core.ConditionTimeoutException;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,6 +15,7 @@ import org.springframework.cloud.stream.binder.kafka.streams.KafkaStreamsRegistr
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 
+import static com.example.kstreamserrordemo.KStreamsErrorDemoApplication.STORE_1_NAME;
 import static com.example.kstreamserrordemo.KStreamsErrorDemoApplication.STORE_2_NAME;
 import static org.awaitility.Awaitility.await;
 import static org.awaitility.Awaitility.given;
@@ -34,31 +36,34 @@ class KStreamsErrorDemoApplicationTests {
     @Autowired
     private KafkaStreamsRegistry registry;
 
-    @RepeatedTest(5) // sometimes it might work on KStreams 3.1 if the stars are well aligned
+    @Test
     void sendMessageAndAssertStore() {
 
         waitForRunningStreams();
 
         var testMessage = "Ahoy!";
+        template.send("input-1", KEY, testMessage);
         template.send("input-2", KEY, testMessage);
 
-        // wait until the store has something or timeout passes
+        // wait until the stores have something or timeout passes
         try {
             given()
                     .ignoreExceptions()
                     .await()
                     .atMost(Duration.ofSeconds(10))
-                    .until(() -> {
-                        var store = queryService.getQueryableStore(STORE_2_NAME, QueryableStoreTypes.keyValueStore());
-                        return store.get(KEY) != null;
-                    });
+                    .until(this::checkStoresPopulated);
         } catch (ConditionTimeoutException e) {
             // ignored
         }
 
-        // this will (usually) throw "The state store, store2, may have migrated to another instance." on KStreams 3.1
-        var store = queryService.getQueryableStore(STORE_2_NAME, QueryableStoreTypes.keyValueStore());
-        assertThat(store.get(KEY), equalTo(testMessage.toUpperCase()));
+        // this will throw "The state store, <name>, may have migrated to another instance." on KStreams 3.1
+        assertThat(checkStoresPopulated(), equalTo(true));
+    }
+
+    private boolean checkStoresPopulated() {
+        return Stream.of(STORE_1_NAME, STORE_2_NAME)
+                .map(name -> queryService.getQueryableStore(name, QueryableStoreTypes.keyValueStore()))
+                .allMatch(store -> store.get(KEY) != null);
     }
 
     private void waitForRunningStreams() {
