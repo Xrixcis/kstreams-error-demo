@@ -1,1 +1,30 @@
 
+
+spring:
+  cloud:
+    stream:
+      function:
+        definition: app1;app2
+        bindings:
+          app1-in-0: input-1
+          app2-in-0: input-2
+      kafka:
+        streams:
+          binder:
+            configuration:
+              application:
+                server: ${spring.cloud.client.ip-address}:${server.port}
+            auto-create-topics: true
+            functions:
+              app1:
+                application-id: demo-app-1
+              app2:
+                application-id: demo-app-2
+server:
+  port: 8086
+management:
+  server:
+    port: 9086
+  health:
+    binders:
+      enabled: true
